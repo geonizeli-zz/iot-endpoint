@@ -18,22 +18,24 @@ const String DEVICE_ID = "01";
 const String CLIENT_ID = "d:"+ORG+":"+DEVICE_TYPE+":"+DEVICE_ID;
 const String MQTT_SERVER = ORG + ".messaging.internetofthings.ibmcloud.com";
 
-#define RGB_TOPIC "iot-2/cmd/rgb/fmt/json"
-#define BZR_TOPIC "iot-2/cmd/buzzer/fmt/json"
-#define SKT1_TOPIC "iot-2/cmd/socket_1/fmt/json"
-#define SKT2_TOPIC "iot-2/cmd/socket_2/fmt/json"
-#define SKT3_TOPIC "iot-2/cmd/socket_3/fmt/json"
-#define SKT4_TOPIC "iot-2/cmd/socket_4/fmt/json"
 
-#define RGBR_PIN 13
-#define RGBG_PIN 14
-#define RGBB_PIN 15
-#define BRZ_PIN 4
-#define SKT1_PIN 14
-#define SKT2_PIN 27
-#define SKT3_PIN 26
-#define SKT4_PIN 25
+#define R1_TOPIC "iot-2/cmd/cmdR1/fmt/json"
+#define R2_TOPIC "iot-2/cmd/cmdR2/fmt/json"
+#define R3_TOPIC "iot-2/cmd/cmdR3/fmt/json"
+#define R4_TOPIC "iot-2/cmd/cmdR4/fmt/json"
+#define RGB_TOPIC "iot-2/cmd/cmdRGB/fmt/json"
+#define BUZZER_TOPIC "iot-2/cmd/cmdBUZZER/fmt/json"
 
+#define R1_PIN 14
+#define R2_PIN 27
+#define R3_PIN 26
+#define R4_PIN 25
+
+#define RED 39
+#define GREEN 36
+#define BLUE 15
+
+#define BUZZER 4
 #define CONNECT_PIN 2
 
 WiFiClient wifiClient;
@@ -41,43 +43,43 @@ WiFiClient wifiClient;
 PubSubClient client(MQTT_SERVER.c_str(), 1883, wifiClient);
 
 void setup() {
-    Serial.begin(115200);
+  Serial.begin(115200);
 
-    pinMode(RGBR_PIN, OUTPUT);
-    digitalWrite(RGBR_PIN, LOW);
+  pinMode(R1_PIN, OUTPUT);
+  pinMode(R2_PIN, OUTPUT);
+  pinMode(R3_PIN, OUTPUT);
+  pinMode(R4_PIN, OUTPUT);
+  pinMode(BUZZER, OUTPUT);
 
-    pinMode(RGBG_PIN, OUTPUT);
-    digitalWrite(RGBG_PIN, LOW);
+  pinMode(RED, INPUT);
+  pinMode(GREEN, INPUT);
+  pinMode(BLUE, INPUT);
 
-    pinMode(RGBB_PIN, OUTPUT);
-    digitalWrite(RGBB_PIN, LOW);
+  ledcAttachPin(RED, 0);
+  ledcSetup(0, 1000, 10);
+  ledcAttachPin(GREEN, 1);
+  ledcSetup(1, 1000, 10);
+  ledcAttachPin(BLUE, 2);
+  ledcSetup(3, 1000, 10);
 
-    pinMode(BRZ_PIN , OUTPUT);
-    digitalWrite(BRZ_PIN , LOW);
+  digitalWrite(R1_PIN, LOW);
+  digitalWrite(R2_PIN, LOW);
+  digitalWrite(R3_PIN, LOW);
+  digitalWrite(R4_PIN, LOW);
+  digitalWrite(BUZZER, LOW);
 
-    pinMode(SKT1_PIN, OUTPUT);
-    digitalWrite(SKT1_PIN, LOW);
+  pinMode(CONNECT_PIN, OUTPUT);
+  digitalWrite(CONNECT_PIN, LOW);
 
-    pinMode(SKT2_PIN, OUTPUT);
-    digitalWrite(SKT2_PIN, LOW);
+  WiFiManager wifiManager;
 
-    pinMode(SKT3_PIN, OUTPUT);
-    digitalWrite(SKT3_PIN, LOW);
+  wifiManager.setAPCallback(configModeCallback); 
+  wifiManager.setSaveConfigCallback(saveConfigCallback); 
 
-    pinMode(SKT4_PIN, OUTPUT);
-    digitalWrite(SKT4_PIN, LOW);
+  wifiManager.autoConnect("ESP_AP");
+  //wifiManager.startConfigPortal("ESP_AP");
 
-    pinMode(CONNECT_PIN, OUTPUT);
-    digitalWrite(CONNECT_PIN, LOW);
-
-    WiFiManager wifiManager;
-
-    wifiManager.setAPCallback(configModeCallback); 
-    wifiManager.setSaveConfigCallback(saveConfigCallback); 
-
-    wifiManager.autoConnect("ESP_AP");
-
-    connectMQTTServer();
+  connectMQTTServer();
 }
 
 void loop() {
@@ -90,12 +92,10 @@ void connectMQTTServer() {
     Serial.println("Connected to MQTT Broker");
     client.setCallback(callback);
 
-    client.subscribe(RGB_TOPIC);
-    client.subscribe(BZR_TOPIC);
-    client.subscribe(SKT1_TOPIC);
-    client.subscribe(SKT2_TOPIC);
-    client.subscribe(SKT3_TOPIC);
-    client.subscribe(SKT4_TOPIC);
+    client.subscribe(R1_TOPIC);
+    client.subscribe(R2_TOPIC);
+    client.subscribe(R3_TOPIC);
+    client.subscribe(R4_TOPIC);
 
     digitalWrite(CONNECT_PIN, HIGH);
   } else {
@@ -103,48 +103,61 @@ void connectMQTTServer() {
     Serial.println(client.state());
     connectMQTTServer();
   }
-  
 }
 
 void callback(char* topic, unsigned char* payload, unsigned int length) {
-    Serial.print("topic ");
-    Serial.println(topic);
-    StaticJsonBuffer<30> jsonBuffer;
-    JsonObject& root = jsonBuffer.parseObject(payload);
+  Serial.print("topic ");
+  Serial.println(topic);
+  StaticJsonBuffer<30> jsonBuffer;
+  JsonObject& root = jsonBuffer.parseObject(payload);
 
-    if(!root.success())
-    {
-        Serial.println("Json Parse Error");
-        return;
-    }
+  if(!root.success())
+  {
+      Serial.println("Json Parse Error");
+      return;
+  }
 
-    int value = root["value"];
+  int value = root["value"];
 
-    if (strcmp(topic, BZR_TOPIC) == 1)
+  if (strcmp(topic, R1_TOPIC) == 1)
+  {
+    digitalWrite(R1_PIN, value);
+  }
+  else if (strcmp(topic, R2_TOPIC) == 1)
+  {
+    digitalWrite(R2_PIN, value);
+  }
+  else if (strcmp(topic, R3_TOPIC) == 1)
+  {
+    digitalWrite(R3_PIN, value);
+  }
+  else if (strcmp(topic, R4_TOPIC) == 1)
+  {
+    digitalWrite(R4_PIN, value);
+  }
+  else if (strcmp(topic, BUZZER_TOPIC) == 1)
+  {
+    digitalWrite(BUZZER, value);
+  }
+  else if (strcmp(topic, RGB_TOPIC) == 1)
+  {
+    
+    if (value != 0)
     {
-      digitalWrite(BRZ_PIN, value);
+      int red = root["red"];
+      int green = root["green"];
+      int blue = root["blue"];
+      
+      ledcWrite(0, red * 1023 / 255);
+      ledcWrite(1, green * 1023 / 255);
+      ledcWrite(2, blue * 1023 / 255);
     }
-    else if (strcmp(topic, SKT1_TOPIC) == 1)
-    {
-      digitalWrite(SKT1_PIN, value);
+    else {
+      ledcWrite(0, 0);
+      ledcWrite(1, 0);
+      ledcWrite(2, 0);
     }
-    else if (strcmp(topic, SKT2_TOPIC) == 1)
-    {
-      digitalWrite(SKT2_PIN, value);
-    }
-    else if (strcmp(topic, SKT3_TOPIC) == 1)
-    {
-      digitalWrite(SKT3_PIN, value);
-    }
-    else if (strcmp(topic, SKT4_TOPIC) == 1)
-    {
-      digitalWrite(SKT4_PIN, value);
-    }
-    else // So is the RGB_TOPIC
-    {
-      // TODO:
-      // build a function to control pwm from rgb pins
-    }
+  }
 }
 
 void configModeCallback (WiFiManager *myWiFiManager) {  
